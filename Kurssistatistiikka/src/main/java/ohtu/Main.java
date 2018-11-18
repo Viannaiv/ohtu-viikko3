@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.http.client.fluent.Request;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class Main {
 
@@ -26,6 +28,8 @@ public class Main {
                 continue;
             }
             
+            List<Integer> stats = getStatisticsOfCourse(c.getName());
+            
             System.out.println(c.getFullName() + " " + c.getTerm() +" " + c.getYear() + "\n");
             
             int totex = 0;
@@ -45,6 +49,9 @@ public class Main {
             System.out.println("");
             System.out.println("Yhteensä: " + totex + "/" + c.getExerciseTotalOfCourse() +
                     " tehtävää ja " + tothours + " tuntia \n");
+            System.out.println("Kursilla yhteensä " + stats.get(0) + 
+                    " palautusta, palautettuja tehtäviä " + stats.get(1) +
+                    ", aikaa käytetty yhteensä tunteina " + stats.get(2) + "\n");
         }
     }
     
@@ -65,8 +72,8 @@ public class Main {
         Gson mapper = new Gson();
         CourseInfo[] coursei = mapper.fromJson(bodyText, CourseInfo[].class);
         
-        System.out.println("json-muotoinen data:");
-        System.out.println( bodyText );
+//        System.out.println("json-muotoinen data:");
+//        System.out.println( bodyText );
 
         return coursei;
     }
@@ -80,4 +87,35 @@ public class Main {
         }
         return submissions;
     }
+    
+    private static List<Integer> getStatisticsOfCourse(String name) throws IOException {
+        String url = "https://studies.cs.helsinki.fi/courses/" +  name + "/stats";
+        String statsResponse = Request.Get(url).execute().returnContent().asString();
+
+        JsonParser parser = new JsonParser();
+        JsonObject parsedData = parser.parse(statsResponse).getAsJsonObject();
+        
+        int i = 1;
+        int submissions = 0;
+        int exercisetotal = 0;
+        int totalhours = 0;
+        List<Integer> stats = new ArrayList<>();
+        
+        while(true) {
+            JsonObject x = parsedData.getAsJsonObject(String.valueOf(i));
+            if (x == null) {
+                break;
+            }
+            submissions += x.get("students").getAsInt();
+            exercisetotal += x.get("exercise_total").getAsInt();
+            totalhours += x.get("hour_total").getAsInt();
+            i++;
+        }
+        stats.add(submissions);
+        stats.add(exercisetotal);
+        stats.add(totalhours);
+        
+        return stats;
+    }
+    
 }
